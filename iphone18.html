@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>iPhone 18 — Interactive Mobile Simulator (Single HTML)</title>
+  <style>
+    :root{
+      --phone-width:360px;
+      --phone-height:780px;
+      --bg:#0b1220;
+      --screen-radius:34px;
+      --accent:#06f;
+      --icon-size:64px;
+      --dock-height:86px;
+      --glass: rgba(255,255,255,0.06);
+    }
+    *{box-sizing:border-box;font-family:Inter, Roboto, system-ui, -apple-system, "Segoe UI", sans-serif}
+    html,body{height:100%;margin:0;background:linear-gradient(180deg,#071428 0%, #071829 60%);display:flex;align-items:center;justify-content:center;padding:20px}
+
+    /* Phone frame */
+    .phone{
+      width:var(--phone-width);
+      height:var(--phone-height);
+      background:linear-gradient(180deg,#0f1724,#071026);
+      border-radius:44px;
+      box-shadow:0 30px 80px rgba(0,0,0,0.6), inset 0 2px 10px rgba(255,255,255,0.02);
+      position:relative;
+      overflow:hidden;
+      border:6px solid rgba(255,255,255,0.03);
+      display:flex;flex-direction:column;
+    }
+
+    /* Notch / speaker */
+    .top-bezel{height:54px;display:flex;align-items:center;justify-content:center;padding:8px 12px}
+    .notch{width:70%;height:38px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:14px;display:flex;align-items:center;justify-content:space-between;padding:6px 10px}
+    .status{font-size:12px;color:rgba(255,255,255,0.85);display:flex;gap:8px;align-items:center}
+
+    .screen{
+      flex:1;position:relative;padding:12px 12px 0 12px;background-size:cover;background-position:center;display:flex;flex-direction:column;--safe-bottom:86px;
+    }
+
+    /* Status bar small */
+    .statusbar{display:flex;align-items:center;justify-content:space-between;padding:6px 6px;color:white;font-size:12px}
+    .statusbar .left{display:flex;gap:8px;align-items:center}
+    .statusbar .right{display:flex;gap:6px;align-items:center}
+
+    /* Home grid */
+    .home{
+      display:grid;grid-template-columns:repeat(4,1fr);gap:14px;padding:12px;padding-bottom:18px;align-content:start;overflow:auto;flex:1;
+    }
+    .icon{
+      width:100%;display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;color:white;text-shadow:0 1px 0 rgba(0,0,0,0.6);
+      cursor:pointer;user-select:none
+    }
+    .icon .circle{width:var(--icon-size);height:var(--icon-size);border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:28px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));box-shadow:0 6px 18px rgba(0,0,0,0.6)}
+    .icon .label{font-size:11px;opacity:0.95}
+
+    /* Dock */
+    .dock{height:var(--dock-height);background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));display:flex;align-items:center;justify-content:center;border-top-left-radius:18px;border-top-right-radius:18px;padding:10px;gap:14px}
+    .dock .dock-inner{width:100%;display:flex;align-items:center;justify-content:center;gap:16px}
+
+    /* App window */
+    .app-window{position:absolute;left:10px;right:10px;top:70px;bottom:var(--dock-height);background:linear-gradient(180deg,#0a0f13,#061019);border-radius:18px;box-shadow:0 20px 60px rgba(0,0,0,0.6);overflow:hidden;display:flex;flex-direction:column;transform:translateY(20px);opacity:0;pointer-events:none}
+    .app-window.active{opacity:1;transform:translateY(0);pointer-events:auto}
+    .app-header{height:44px;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));display:flex;align-items:center;justify-content:space-between;padding:6px 12px}
+    .app-header .title{color:white;font-weight:600}
+    .app-body{padding:10px;flex:1;overflow:auto}
+    .app-controls{display:flex;gap:8px}
+    .btn{background:var(--glass);border-radius:10px;padding:6px 10px;color:white;font-weight:600;border:1px solid rgba(255,255,255,0.03);cursor:pointer}
+    .btn.ghost{background:transparent;border:1px solid rgba(255,255,255,0.05)}
+
+    /* Simple forms */
+    input[type=text],input[type=url],textarea,select{width:100%;padding:10px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);background:transparent;color:white}
+    label{color:#cfe8ff;font-size:12px}
+
+    /* Gallery */
+    .gallery-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .gallery-grid img{width:100%;height:110px;object-fit:cover;border-radius:10px}
+
+    /* Messages */
+    .messages{display:flex;flex-direction:column;gap:10px}
+    .msg{max-width:80%;padding:10px;border-radius:12px}
+    .msg.me{background:linear-gradient(90deg,#0ea5ff55,#06f2c655);align-self:flex-end}
+    .msg.them{background:rgba(255,255,255,0.04)}
+
+    /* Candy grid */
+    .candy-board{display:grid;grid-template-columns:repeat(8,1fr);gap:6px;padding:6px}
+    .candy{width:100%;padding-top:100%;position:relative;border-radius:8px}
+    .candy .inner{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:22px;color:white;border-radius:8px}
+
+    /* Small helpers */
+    .small{font-size:12px;color:#cdd9ee}
+    .center{display:flex;align-items:center;justify-content:center}
+
+    /* Responsive hint */
+    @media (max-width:420px){:root{--phone-width:320px;--phone-height:720px}}
+
+  </style>
+</head>
+<body>
+  <div class="phone" id="phone">
+    <div class="top-bezel">
+      <div class="notch">
+        <div class="status">📶 <span id="carrier">iNet</span></div>
+        <div class="status">🔋 <span id="battery">100%</span></div>
+      </div>
+    </div>
+
+    <div class="screen" id="screen" style="background-image: linear-gradient(135deg,#0b2740,#07202b);">
+      <div class="statusbar">
+        <div class="left"><div id="timeNow" class="small">12:00</div></div>
+        <div class="right">
+          <div class="small" id="dateNow">Sep 14</div>
+        </div>
+      </div>
+
+      <div class="home" id="home"></div>
+
+      <div class="dock">
+        <div class="dock-inner" id="dock"></div>
+      </div>
+
+    </div>
+
+    <!-- App window container (single re-usable window) -->
+    <div id="app" class="app-window" aria-hidden="true">
+      <div class="app-header">
+        <div class="title" id="appTitle">App</div>
+        <div class="app-controls">
+          <button class="btn" id="appBack">Home</button>
+          <button class="btn ghost" id="appClose">Close</button>
+        </div>
+      </div>
+      <div class="app-body" id="appBody">Loading…</div>
+    </div>
+
+  </div>
+
+  <script>
+    /* ---------- Utilities ---------- */
+    const apps = {};
+    function $(sel, root=document) { return root.querySelector(sel); }
+    function create(tag,attrs={},children){ const e=document.createElement(tag); for(let k in attrs){ if(k==='class') e.className=attrs[k]; else if(k==='html') e.innerHTML=attrs[k]; else e.setAttribute(k,attrs[k]); } if(children) for(const c of children) e.appendChild(typeof c==='string'?document.createTextNode(c):c); return e; }
+
+    function fmtTime(d=new Date()){ return d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}); }
+    function fmtDate(d=new Date()){ return d.toLocaleDateString([], {month:'short', day:'numeric'}); }
+
+    /* ---------- Statusbar updates ---------- */
+    function updateStatus(){ $('#timeNow').textContent = fmtTime(); $('#dateNow').textContent = fmtDate(); }
+    setInterval(updateStatus,1000); updateStatus();
+
+    /* Simulated battery */
+    let batteryPct = parseInt(localStorage.getItem('battery')||100);
+    function drainBattery(step=0.02){ batteryPct = Math.max(5, Math.round((batteryPct - step)*100)/100); $('#battery').textContent = Math.round(batteryPct)+'%'; localStorage.setItem('battery',batteryPct); }
+    setInterval(()=>drainBattery(0.01),60000);
+    $('#battery').textContent = Math.round(batteryPct)+'%';
+
+    /* ---------- Home & Dock ---------- */
+    const homeEl = $('#home'); const dockEl = $('#dock');
+
+    const preinstalled = [
+      {id:'google',name:'Google',icon:'🔎'},
+      {id:'youtube',name:'YouTube',icon:'▶️'},
+      {id:'playstore',name:'Play Store',icon:'🛒'},
+      {id:'freefire',name:'FreeFire',icon:'🔥'},
+      {id:'pubg',name:'PUBG',icon:'🎯'},
+      {id:'candy',name:'CandyCrush',icon:'🍬'},
+      {id:'camera',name:'Camera',icon:'📸'},
+      {id:'gallery',name:'Gallery',icon:'🖼️'},
+      {id:'messages',name:'Messages',icon:'💬'},
+      {id:'phone',name:'Phone',icon:'📞'},
+      {id:'browser',name:'Browser',icon:'🌐'},
+      {id:'maps',name:'Maps',icon:'🗺️'},
+      {id:'music',name:'Music',icon:'🎵'},
+      {id:'calculator',name:'Calculator',icon:'🧮'},
+      {id:'notes',name:'Notes',icon:'🗒️'},
+      {id:'settings',name:'Settings',icon:'⚙️'}
+    ];
+
+    // Installed apps saved in localStorage (ids)
+    function getInstalled(){ return JSON.parse(localStorage.getItem('installed')||JSON.stringify(preinstalled.map(a=>a.id))); }
+    function setInstalled(list){ localStorage.setItem('installed', JSON.stringify(list)); }
+
+    // Create icon element
+    function createIcon(app){ const wrap=create('div',{class:'icon', 'data-id':app.id}); const circle=create('div',{class:'circle', html:app.icon}); const label=create('div',{class:'label'}); label.textContent = app.name; wrap.appendChild(circle); wrap.appendChild(label); wrap.addEventListener('click',()=>openApp(app.id)); return wrap; }
+
+    // Render home and dock
+    function renderHome(){ homeEl.innerHTML=''; dockEl.innerHTML=''; const installed = getInstalled(); const installedSet = new Set(installed);
+      // Add icons in order of preinstalled, then others
+      const order = preinstalled.concat([]);
+      for(const a of order){ if(installedSet.has(a.id)) homeEl.appendChild(createIcon(a)); }
+      // Dock: first 4 installed
+      const dockApps = installed.slice(0,4).map(id=> preinstalled.find(p=>p.id===id) || {id:id,name:id,icon:'📱'} );
+      for(const a of dockApps) dockEl.appendChild(createIcon(a));
+    }
+
+    /* ---------- App window handling ---------- */
+    const appWindow = $('#app'); const appBody = $('#appBody'); const appTitle = $('#appTitle');
+    $('#appClose').addEventListener('click', closeApp);
+    $('#appBack').addEventListener('click', ()=>{ closeApp(); renderHome(); });
+
+    function openApp(id,params){ const app = apps[id]; if(!app) return openApp('browser',{url:'https://www.google.com/search?q='+encodeURIComponent(id)});
+      appTitle.textContent = app.name; appBody.innerHTML = ''; appWindow.classList.add('active'); appWindow.setAttribute('aria-hidden','false');
+      try{ app.launch(appBody, params); } catch(e){ appBody.innerHTML = '<div style="color:#f88">Failed to open app: '+e+'</div>'; console.error(e); }
+    }
+    function closeApp(){ appWindow.classList.remove('active'); appWindow.setAttribute('aria-hidden','true'); appBody.innerHTML=''; }
+
+    /* ---------- Core App Definitions ---------- */
+
+    /* Google App */
+    apps.google = {
+      id:'google', name:'Google', icon:'🔎',
+      launch(container){
+        const form = create('div',{},[
+          create('label',{},['Search Google']),
+          create('input',{type:'text',id:'gq',placeholder:'Type to search...'}),
+        ]);
+        const btn = create('button',{class:'btn'},['Search']);
+        btn.addEventListener('click',()=>{
+          const q = form.querySelector('#gq').value.trim(); if(!q) return; // open real google as primary action
+          // Provide simulated inline results
+          appBody.querySelectorAll('.result').forEach(n=>n.remove());
+          const results = fakeSearchResults(q);
+          for(const r of results){ const el = create('div',{class:'result'},[create('a',{href:r.link,target:'_blank',html:'<strong>'+r.title+'</strong>'}), create('div',{class:'small',html:r.snippet})]); el.style.marginTop='10px'; appBody.appendChild(el); }
+        });
+        container.appendChild(form); container.appendChild(btn);
+        // Quick search suggestions
+        const qinput = form.querySelector('#gq'); qinput.addEventListener('keydown',(e)=>{ if(e.key==='Enter') btn.click(); });
+      }
+    };
+
+    function fakeSearchResults(q){ const r=[]; for(let i=1;i<=6;i++){ r.push({title:`${q} - result ${i}`, link:`https://www.google.com/search?q=${encodeURIComponent(q+' result '+i)}`, snippet:`This is a simulated search result for "${q}". Click to search the web.`}); } return r; }
+
+    /* YouTube App */
+    apps.youtube = {
+      id:'youtube', name:'YouTube', icon:'▶️',
+      launch(container){
+        const input = create('input',{type:'text',placeholder:'Search YouTube (opens in new tab)'});
+        const btn = create('button',{class:'btn'},['Search']);
+        const sample = create('div',{html:'<div class="small">Sample video:</div>'});
+        const iframe = create('div',{html:'<iframe width="100%" height="200" src="https://www.youtube.com/embed/dQw4w9WgXcQ" frameborder="0" allowfullscreen></iframe>'});
+        btn.addEventListener('click',()=>{ const q = input.value.trim(); if(!q) return; window.open('https://www.youtube.com/results?search_query='+encodeURIComponent(q),'_blank'); });
+        container.appendChild(input); container.appendChild(btn); container.appendChild(sample); container.appendChild(iframe);
+      }
+    };
+
+    /* Play Store (simulated): installs apps to home */
+    const storeCatalog = [
+      {id:'tictac',name:'TicTacToe',icon:'❎'},
+      {id:'paint',name:'PocketPaint',icon:'🎨'},
+      {id:'todo',name:'ToDo',icon:'✅'},
+      {id:'fastbrowser',name:'Fast Browser',icon:'🌐'},
+      {id:'snake',name:'Snake',icon:'🐍'}
+    ];
+    apps.playstore = {
+      id:'playstore', name:'Play Store', icon:'🛒',
+      launch(container){
+        const list = create('div');
+        for(const a of storeCatalog){ const row = create('div',{class:'small',html:`<strong>${a.icon} ${a.name}</strong>`}); const btn = create('button',{class:'btn'},['Install']); btn.style.margin='8px'; btn.addEventListener('click',()=>{ installApp(a); btn.textContent='Installed'; btn.disabled=true; }); row.appendChild(btn); list.appendChild(row); }
+        container.appendChild(list);
+      }
+    };
+
+    /* Install app to home */
+    function installApp(appObj){ const installed = getInstalled(); if(!installed.includes(appObj.id)){ installed.push(appObj.id); setInstalled(installed); renderHome(); }
+      // also register a minimal app if not present
+      if(!apps[appObj.id]){
+        apps[appObj.id] = { id:appObj.id, name:appObj.name, icon:appObj.icon, launch(container){ container.innerHTML = '<div class="center small">'+appObj.name+' — basic app installed. This is a placeholder.</div>'; } };
+      }
+    }
+
+    /* FreeFire / PUBG — lightweight click shooter */
+    function makeShooterGame(container,opts={}){
+      const canvas = create('canvas'); canvas.width=320; canvas.height=480; canvas.style.width='100%'; canvas.style.background='linear-gradient(180deg,#88c,#036)'; container.appendChild(canvas);
+      const ctx = canvas.getContext('2d'); let running=false; let score=0; let targets=[]; let lastSpawn=0; let start=Date.now();
+      function spawn(){ const t={x:Math.random()*(canvas.width-60)+30,y: -20,vy:1+Math.random()*2,r:18+Math.random()*12,color:['#ff5','#5f5','#f55'][Math.floor(Math.random()*3)]}; targets.push(t); }
+      function update(dt){ for(const t of targets){ t.y += t.vy*dt*0.06; } targets = targets.filter(t=>t.y<canvas.height+50); if(Math.random()<0.02) spawn(); }
+      function draw(){ ctx.clearRect(0,0,canvas.width,canvas.height); ctx.fillStyle='rgba(0,0,0,0.1)'; ctx.fillRect(0,0,canvas.width,canvas.height); for(const t of targets){ ctx.beginPath(); ctx.fillStyle=t.color; ctx.arc(t.x,t.y,t.r,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='rgba(255,255,255,0.2)'; ctx.stroke(); }
+        ctx.fillStyle='white'; ctx.fillText('Score: '+score,10,20);
+      }
+      canvas.addEventListener('click',(e)=>{ const rect=canvas.getBoundingClientRect(); const x=(e.clientX-rect.left)*(canvas.width/rect.width); const y=(e.clientY-rect.top)*(canvas.height/rect.height); for(let i=targets.length-1;i>=0;i--){ const t=targets[i]; const d=Math.hypot(t.x-x,t.y-y); if(d<t.r){ targets.splice(i,1); score += 10; break; } } });
+      let last=Date.now(); function loop(){ const now=Date.now(); const dt = now-last; last=now; update(dt); draw(); if(running) requestAnimationFrame(loop); }
+      const ctrl = create('div',{class:'center small',html:'<button class="btn">Start</button> <span id="gscore">Score: 0</span>'}); const btn = ctrl.querySelector('button'); const span = ctrl.querySelector('#gscore'); btn.addEventListener('click',()=>{ if(!running){ running=true; score=0; targets=[]; last=Date.now(); loop(); btn.textContent='Stop'; } else { running=false; btn.textContent='Start'; } }); container.appendChild(ctrl);
+      return {stop:()=>running=false};
+    }
+
+    apps.freefire = {id:'freefire',name:'FreeFire',icon:'🔥', launch(container){ container.innerHTML=''; container.appendChild(create('div',{class:'small',html:'FreeFire — quick shooter (simulated)'})); makeShooterGame(container,{mode:'freefire'}); }};
+    apps.pubg = {id:'pubg',name:'PUBG',icon:'🎯', launch(container){ container.innerHTML=''; container.appendChild(create('div',{class:'small',html:'PUBG — quick shooter (simulated)'})); makeShooterGame(container,{mode:'pubg'}); }};
+
+    /* Candy Crush — simplified match-3 */
+    apps.candy = {id:'candy',name:'Candy Crush',icon:'🍬', launch(container){ container.innerHTML=''; const board = create('div',{class:'candy-board'}); container.appendChild(board);
+      const rows=8,cols=8; const colors=['#ff4d4d','#ffbd4d','#ffd34d','#4dd2ff','#8d4dff','#4dff88']; let grid=[]; function rand(){ return colors[Math.floor(Math.random()*colors.length)]; }
+      function makeGrid(){ grid=[]; for(let r=0;r<rows;r++){ const row=[]; for(let c=0;c<cols;c++){ row.push(rand()); } grid.push(row); } // eliminate initial matches
+        while(findMatches().length){ removeMatches(); collapse(); refill(); }
+      }
+      function render(){ board.innerHTML=''; for(let r=0;r<rows;r++){ for(let c=0;c<cols;c++){ const cell=create('div',{class:'candy'}); const inner=create('div',{class:'inner',html:''}); inner.style.background=grid[r][c]||'transparent'; inner.textContent=''; cell.appendChild(inner); cell.dataset.r=r; cell.dataset.c=c; board.appendChild(cell); } }
+        // attach click handlers
+        let sel=null; board.querySelectorAll('.candy').forEach(el=>el.addEventListener('click',()=>{
+          const r=parseInt(el.dataset.r), c=parseInt(el.dataset.c);
+          if(!sel){ sel=[r,c]; el.style.transform='scale(0.95)'; } else {
+            const [sr,sc]=sel; const dr=Math.abs(sr-r), dc=Math.abs(sc-c);
+            const first = board.querySelector(`[data-r="${sr}"][data-c="${sc}"]`);
+            if((dr+dc)===1){ swap(sr,sc,r,c); if(findMatches().length){ processMatches(); } else { swap(sr,sc,r,c); }
+            } else { first.style.transform=''; sel=null; }
+          }
+        })); }
+      function swap(r1,c1,r2,c2){ const t=grid[r1][c1]; grid[r1][c1]=grid[r2][c2]; grid[r2][c2]=t; render(); }
+      function findMatches(){ const matches=[]; // horizontal
+        for(let r=0;r<rows;r++){ let run=1; for(let c=1;c<cols;c++){ if(grid[r][c]===grid[r][c-1]) run++; else{ if(run>=3) for(let k=0;k<run;k++) matches.push([r,c-1-k]); run=1; } } if(run>=3) for(let k=0;k<run;k++) matches.push([r,cols-1-k]); }
+        // vertical
+        for(let c=0;c<cols;c++){ let run=1; for(let r=1;r<rows;r++){ if(grid[r][c]===grid[r-1][c]) run++; else{ if(run>=3) for(let k=0;k<run;k++) matches.push([r-1-k,c]); run=1; } } if(run>=3) for(let k=0;k<run;k++) matches.push([rows-1-k,c]); }
+        // unique
+        return matches.map(x=>x.join(',')).filter((v,i,a)=>a.indexOf(v)===i).map(s=>s.split(',').map(Number)); }
+      function removeMatches(){ const matches = findMatches(); for(const [r,c] of matches) grid[r][c]=null; }
+      function collapse(){ for(let c=0;c<cols;c++){ let write = rows-1; for(let r=rows-1;r>=0;r--){ if(grid[r][c]!=null){ grid[write][c]=grid[r][c]; if(write!==r) grid[r][c]=null; write--; } } for(let r=write;r>=0;r--) grid[r][c]=null; } }
+      function refill(){ for(let r=0;r<rows;r++) for(let c=0;c<cols;c++) if(grid[r][c]==null) grid[r][c]=rand(); }
+      function processMatches(){ let matches = findMatches(); if(matches.length===0) return; removeMatches(); setTimeout(()=>{ collapse(); refill(); render(); setTimeout(processMatches,300); },180); }
+      makeGrid(); render();
+    }};
+
+    /* Camera & Gallery */
+    apps.camera = {id:'camera',name:'Camera',icon:'📸', launch(container){ container.innerHTML=''; const video = create('video'); video.style.width='100%'; video.autoplay=true; video.playsInline=true; container.appendChild(video); const btn = create('button',{class:'btn'},['Capture']); container.appendChild(btn);
+      navigator.mediaDevices && navigator.mediaDevices.getUserMedia ? navigator.mediaDevices.getUserMedia({video:true,audio:false}).then(stream=>{ video.srcObject=stream; }).catch(()=>{ container.appendChild(create('div',{class:'small',html:'Camera access denied or unavailable.'})); }) : container.appendChild(create('div',{class:'small',html:'Camera not supported in this browser.'}));
+      btn.addEventListener('click',()=>{ const c=document.createElement('canvas'); c.width=video.videoWidth||640; c.height=video.videoHeight||480; const ctx=c.getContext('2d'); ctx.drawImage(video,0,0,c.width,c.height); const data = c.toDataURL('image/jpeg',0.8); saveToGallery(data); alert('Captured to Gallery'); });
+    }};
+
+    // Gallery app
+    function saveToGallery(dataUrl){ const g = JSON.parse(localStorage.getItem('gallery')||'[]'); g.unshift(dataUrl); localStorage.setItem('gallery', JSON.stringify(g.slice(0,100))); }
+    apps.gallery = {id:'gallery',name:'Gallery',icon:'🖼️', launch(container){ container.innerHTML=''; const g = JSON.parse(localStorage.getItem('gallery')||'[]'); if(g.length===0) container.appendChild(create('div',{class:'small',html:'Gallery is empty. Use Camera to capture images.'})); else{ const grid=create('div',{class:'gallery-grid'}); for(const d of g){ const img=create('img'); img.src=d; grid.appendChild(img); } container.appendChild(grid); } }};
+
+    /* Messages */
+    apps.messages = {id:'messages',name:'Messages',icon:'💬', launch(container){ container.innerHTML=''; const box=create('div',{class:'messages'}); const input=create('input',{type:'text',placeholder:'Type a message'}); const send=create('button',{class:'btn'},['Send']); container.appendChild(box); container.appendChild(input); container.appendChild(send);
+      function pushMe(text){ const m=create('div',{class:'msg me'}); m.textContent=text; box.appendChild(m); box.scrollTop=box.scrollHeight; }
+      function pushThem(text){ const m=create('div',{class:'msg them'}); m.textContent=text; box.appendChild(m); box.scrollTop=box.scrollHeight; }
+      send.addEventListener('click',()=>{ const t=input.value.trim(); if(!t) return; pushMe(t); input.value=''; setTimeout(()=>pushThem('Auto-reply: got "'+t+'"'),800); });
+    }};
+
+    /* Phone (dialer) */
+    apps.phone = {id:'phone',name:'Phone',icon:'📞', launch(container){ container.innerHTML=''; const num = create('input',{type:'text',placeholder:'Enter number'}); container.appendChild(num); const dial = create('button',{class:'btn'},['Call']); dial.addEventListener('click',()=>{ const val=num.value.trim(); if(!val) return alert('Enter number'); window.location.href='tel:'+val; }); container.appendChild(dial); }};
+
+    /* Browser (iframe) */
+    apps.browser = {id:'browser',name:'Browser',icon:'🌐', launch(container,params){ container.innerHTML=''; const input=create('input',{type:'url',placeholder:'https://example.com'}); const go=create('button',{class:'btn'},['Go']); const frame=create('div'); frame.style.height='420px'; frame.style.background='rgba(0,0,0,0.15)'; frame.style.borderRadius='10px';
+      go.addEventListener('click',()=>{ let url=input.value.trim(); if(!url) return; if(!/^https?:\/\//i.test(url)) url='https://'+url; frame.innerHTML = '<iframe src="'+url+'" style="width:100%;height:100%;border:0;border-radius:10px"></iframe>'; });
+      container.appendChild(input); container.appendChild(go); container.appendChild(frame);
+      if(params && params.url){ input.value=params.url; go.click(); }
+    }};
+
+    /* Maps - open google maps external */
+    apps.maps = {id:'maps',name:'Maps',icon:'🗺️', launch(container){ container.innerHTML=''; const input=create('input',{type:'text',placeholder:'Search location...'}); const btn=create('button',{class:'btn'},['Open in Google Maps']); btn.addEventListener('click',()=>{ const q=input.value.trim(); if(!q) return; window.open('https://www.google.com/maps/search/'+encodeURIComponent(q),'_blank'); }); container.appendChild(input); container.appendChild(btn); }};
+
+    /* Music (web audio sample) */
+    apps.music = {id:'music',name:'Music',icon:'🎵', launch(container){ container.innerHTML=''; const play=create('button',{class:'btn'},['Play Beep Tune']); container.appendChild(play); play.addEventListener('click',()=>{ const ctx = new (window.AudioContext||window.webkitAudioContext)(); const o = ctx.createOscillator(); const g = ctx.createGain(); o.type='sine'; o.frequency.value=440; o.connect(g); g.connect(ctx.destination); o.start(); g.gain.setValueAtTime(0.0001,ctx.currentTime); g.gain.exponentialRampToValueAtTime(0.1, ctx.currentTime+0.02); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime+1); setTimeout(()=>{ o.stop(); ctx.close(); },1200); }); }};
+
+    /* Calculator */
+    apps.calculator = {id:'calculator',name:'Calculator',icon:'🧮', launch(container){ container.innerHTML=''; const out=create('input',{type:'text',id:'calcOut',placeholder:'0'}); container.appendChild(out); const keys='789/456*123-0.=+'.split(''); const grid=create('div',{style:'display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px'});
+      keys.forEach(k=>{ const b=create('button',{class:'btn'},[k]); b.addEventListener('click',()=>{ if(k==='='){ try{ out.value=eval(out.value||'0'); }catch(e){ out.value='err'; } } else out.value += k; }); grid.appendChild(b); }); container.appendChild(grid);
+    }};
+
+    /* Notes */
+    apps.notes = {id:'notes',name:'Notes',icon:'🗒️', launch(container){ container.innerHTML=''; const list=create('div'); const ta=create('textarea',{placeholder:'Write note...'}); ta.style.height='120px'; const save=create('button',{class:'btn'},['Save']); save.addEventListener('click',()=>{ const notes = JSON.parse(localStorage.getItem('notes')||'[]'); notes.unshift({text:ta.value,at:Date.now()}); localStorage.setItem('notes',JSON.stringify(notes)); renderNotes(); ta.value=''; }); container.appendChild(ta); container.appendChild(save); container.appendChild(create('hr'));
+      function renderNotes(){ list.innerHTML=''; const notes = JSON.parse(localStorage.getItem('notes')||'[]'); if(notes.length===0) list.appendChild(create('div',{class:'small',html:'No notes yet'})); else notes.forEach(n=>{ const r=create('div',{class:'small',html:`<strong>${new Date(n.at).toLocaleString()}</strong><div>${n.text}</div>`}); list.appendChild(r); }); }
+      container.appendChild(list); renderNotes(); }};
+
+    /* Settings */
+    apps.settings = {id:'settings',name:'Settings',icon:'⚙️', launch(container){ container.innerHTML=''; const wl = create('div',{class:'small',html:'Wallpaper:'}); const sel = create('select'); [['Blue','linear-gradient(135deg,#0b2740,#07202b)'],['Sunset','linear-gradient(135deg,#ff8a00,#da1b60)'],['Forest','linear-gradient(135deg,#0b6a3f,#042d20)']].forEach(([name,val])=>{ const o=create('option'); o.value=val; o.textContent = name; sel.appendChild(o); }); sel.addEventListener('change',()=>{ document.getElementById('screen').style.backgroundImage = sel.value; }); container.appendChild(wl); container.appendChild(sel);
+      const clearGallery = create('button',{class:'btn'},['Clear Gallery']); clearGallery.addEventListener('click',()=>{ if(confirm('Clear gallery?')){ localStorage.removeItem('gallery'); alert('Gallery cleared'); } }); container.appendChild(create('div',{style:'height:12px'})); container.appendChild(clearGallery);
+    }};
+
+    /* ---------- Final setup ---------- */
+    // register missing from storeCatalog
+    for(const s of storeCatalog) if(!apps[s.id]) apps[s.id]= {id:s.id,name:s.name,icon:s.icon, launch(container){ container.innerHTML='<div class="small">This app was installed from Store: '+s.name+'</div>'; }};
+
+    // expose apps in global registry for playstore
+    window.simApps = apps;
+
+    renderHome();
+
+    // initial hint toast
+    setTimeout(()=>alert('iPhone 18 Simulator ready! Click any app icon to open. Use Camera with permission to capture images. Play Store can install new apps to Home.'),600);
+
+    // drag-to-home placeholder: double-click home to reset
+    document.getElementById('phone').addEventListener('dblclick',()=>{ localStorage.removeItem('installed'); setTimeout(()=>{ alert('Home reset to default (refresh to see)'); },200); });
+  </script>
+</body>
+</html>
